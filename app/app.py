@@ -3,7 +3,7 @@ import dash
 from dash import html, dcc
 from dash.dependencies import Input, Output
 import pandas as pd
-from app.dashboard import (
+from dashboard import (
     create_layout,
     update_revenue_graph,
     update_performance_metrics,
