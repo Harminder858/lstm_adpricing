@@ -2,15 +2,19 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objs as go
 from dash import html, dcc
+import logging
 
 def create_layout(df):
+    min_date = df['date'].min() if not df.empty else None
+    max_date = df['date'].max() if not df.empty else None
+    
     return html.Div([
         html.H1('Ad Pricing Optimization Dashboard'),
         
         dcc.DatePickerRange(
             id='date-range',
-            start_date=df['date'].min(),
-            end_date=df['date'].max(),
+            start_date=min_date,
+            end_date=max_date,
             display_format='YYYY-MM-DD'
         ),
         
@@ -26,7 +30,16 @@ def create_layout(df):
     ])
 
 def update_audience_analysis(df, start_date, end_date):
+    logging.info(f"Updating audience analysis. DataFrame shape: {df.shape}")
+    if df.empty:
+        return go.Figure()  # Return an empty figure if df is empty
+    
     filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    logging.info(f"Filtered DataFrame shape: {filtered_df.shape}")
+    
+    if filtered_df.empty:
+        return go.Figure()  # Return an empty figure if filtered_df is empty
+    
     audience_perf = filtered_df.groupby('target_audience').agg({
         'impressions': 'sum',
         'clicks': 'sum',
@@ -38,6 +51,8 @@ def update_audience_analysis(df, start_date, end_date):
     audience_perf['ctr'] = audience_perf['clicks'] / audience_perf['impressions']
     audience_perf['cvr'] = audience_perf['conversions'] / audience_perf['clicks']
     audience_perf['roas'] = audience_perf['revenue'] / audience_perf['spend']
+    
+    logging.info(f"Audience performance data: {audience_perf.to_dict()}")
     
     fig = px.parallel_coordinates(audience_perf, 
                                   dimensions=['target_audience', 'ctr', 'cvr', 'roas', 'revenue'],
@@ -76,7 +91,15 @@ def update_audience_analysis(df, start_date, end_date):
     return fig
 
 def generate_optimization_suggestions(df, start_date, end_date):
+    logging.info(f"Generating optimization suggestions. DataFrame shape: {df.shape}")
+    if df.empty:
+        return [html.Li("No data available for optimization suggestions.")]
+    
     filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    logging.info(f"Filtered DataFrame shape: {filtered_df.shape}")
+    
+    if filtered_df.empty:
+        return [html.Li("No data available for the selected date range.")]
     
     # Identify top-performing ads
     top_ads = filtered_df.sort_values('roas', ascending=False).head(3)
