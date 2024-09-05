@@ -31,7 +31,6 @@ This project uses LSTM models for dynamic ad pricing to optimize ad revenue. It 
 - `data/`: Contains the dataset used for training and testing.
 - `models/`: Includes the LSTM model implementation.
 - `utils/`: Contains utility functions for data preprocessing and evaluation.
-- `notebooks/`: Jupyter notebooks for exploratory data analysis.
 - `app/`: Dash application for the dashboard.
 - `tests/`: Unit tests for the project components.
 
