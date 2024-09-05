@@ -1,90 +1,103 @@
-import os
-import dash
 from dash import html, dcc
-from dash.dependencies import Input, Output
-import pandas as pd
-from app.dashboard import (
-    create_layout,
-    update_revenue_graph,
-    update_performance_metrics,
-    update_platform_performance,
-    update_format_effectiveness,
-    update_bid_roas_scatter,
-    update_audience_analysis,
-    generate_optimization_suggestions
-)
+import plotly.express as px
+import plotly.graph_objs as go
 
-# Get the directory of the current file
-current_dir = os.path.dirname(os.path.abspath(__file__))
+def create_layout(df):
+    return html.Div([
+        html.H1('Ad Pricing Optimization Dashboard'),
+        
+        dcc.DatePickerRange(
+            id='date-range',
+            start_date=df['date'].min(),
+            end_date=df['date'].max(),
+            display_format='YYYY-MM-DD'
+        ),
+        
+        html.Div([
+            html.H3('Revenue Graph'),
+            dcc.Graph(id='revenue-graph')
+        ]),
+        
+        html.Div([
+            html.H3('Performance Metrics'),
+            dcc.Graph(id='performance-metrics')
+        ]),
+        
+        html.Div([
+            html.H3('Platform Performance'),
+            dcc.Graph(id='platform-performance')
+        ]),
+        
+        html.Div([
+            html.H3('Format Effectiveness'),
+            dcc.Graph(id='format-effectiveness')
+        ]),
+        
+        html.Div([
+            html.H3('Bid Amount vs ROAS'),
+            dcc.Graph(id='bid-roas-scatter')
+        ]),
+        
+        html.Div([
+            html.H3('Target Audience Analysis'),
+            dcc.Graph(id='audience-analysis')
+        ]),
+        
+        html.Div([
+            html.H3('Price Optimization Suggestions'),
+            html.Ul(id='optimization-suggestions')
+        ])
+    ])
 
-# Construct the path to the data file
-data_file_path = os.path.join(current_dir, '..', 'data', 'ad_data.csv')
+def update_revenue_graph(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    fig = px.line(filtered_df, x='date', y='revenue', title='Revenue Over Time')
+    return fig
 
-# Load your data here
-df = pd.read_csv(data_file_path)
-df['date'] = pd.to_datetime(df['date'])
+def update_performance_metrics(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    metrics = go.Figure()
+    metrics.add_trace(go.Indicator(
+        mode = "number+delta",
+        value = filtered_df['ctr'].mean(),
+        title = {"text": "Average CTR"},
+        delta = {'reference': df['ctr'].mean(), 'relative': True},
+        domain = {'row': 0, 'column': 0}
+    ))
+    # Add more metrics as needed
+    return metrics
 
-app = dash.Dash(__name__)
-server = app.server  # This is the line needed for Gunicorn
+def update_platform_performance(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    platform_perf = filtered_df.groupby('platform').agg({'revenue': 'sum', 'roas': 'mean'}).reset_index()
+    fig = px.bar(platform_perf, x='platform', y=['revenue', 'roas'], barmode='group', title='Platform Performance')
+    return fig
 
-app.layout = create_layout(df)
+def update_format_effectiveness(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    format_eff = filtered_df.groupby('format').agg({'ctr': 'mean', 'cvr': 'mean'}).reset_index()
+    fig = px.scatter(format_eff, x='ctr', y='cvr', color='format', size='ctr', hover_data=['format'], title='Format Effectiveness')
+    return fig
 
-# Your callback functions here
-@app.callback(
-    Output('revenue-graph', 'figure'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_revenue_graph_callback(start_date, end_date):
-    return update_revenue_graph(df, start_date, end_date)
+def update_bid_roas_scatter(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    fig = px.scatter(filtered_df, x='bid_amount', y='roas', color='platform', hover_data=['ad_id'], title='Bid Amount vs ROAS')
+    return fig
 
-@app.callback(
-    Output('performance-metrics', 'figure'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_performance_metrics_callback(start_date, end_date):
-    return update_performance_metrics(df, start_date, end_date)
+def update_audience_analysis(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    audience_perf = filtered_df.groupby('target_audience').agg({'ctr': 'mean', 'cvr': 'mean', 'roas': 'mean', 'revenue': 'sum'}).reset_index()
+    fig = px.parallel_coordinates(audience_perf, dimensions=['target_audience', 'ctr', 'cvr', 'roas', 'revenue'], title='Target Audience Analysis')
+    return fig
 
-@app.callback(
-    Output('platform-performance', 'figure'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_platform_performance_callback(start_date, end_date):
-    return update_platform_performance(df, start_date, end_date)
-
-@app.callback(
-    Output('format-effectiveness', 'figure'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_format_effectiveness_callback(start_date, end_date):
-    return update_format_effectiveness(df, start_date, end_date)
-
-@app.callback(
-    Output('bid-roas-scatter', 'figure'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_bid_roas_scatter_callback(start_date, end_date):
-    return update_bid_roas_scatter(df, start_date, end_date)
-
-@app.callback(
-    Output('audience-analysis', 'figure'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_audience_analysis_callback(start_date, end_date):
-    return update_audience_analysis(df, start_date, end_date)
-
-@app.callback(
-    Output('optimization-suggestions', 'children'),
-    Input('date-range', 'start_date'),
-    Input('date-range', 'end_date')
-)
-def update_optimization_suggestions_callback(start_date, end_date):
-    return generate_optimization_suggestions(df, start_date, end_date)
-
-if __name__ == '__main__':
-    app.run_server(debug=True)
+def generate_optimization_suggestions(df, start_date, end_date):
+    filtered_df = df[(df['date'] >= start_date) & (df['date'] <= end_date)]
+    
+    # Add your optimization logic here
+    suggestions = [
+        "Increase budget for top-performing ads",
+        "Adjust targeting for underperforming ads",
+        "Optimize bid amounts based on ROAS"
+    ]
+    
+    return [html.Li(suggestion) for suggestion in suggestions]
